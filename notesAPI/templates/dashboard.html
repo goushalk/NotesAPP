@@ -1,0 +1,228 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Notes Dashboard</title>
+
+<style>
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #111;
+        color: #eee;
+    }
+
+    .container {
+        max-width: 900px;
+        margin: auto;
+        padding: 20px;
+    }
+
+    h1 {
+        text-align: center;
+    }
+
+    #notesList {
+        margin-top: 20px;
+    }
+
+    .note {
+        background: #1c1c1c;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .note-title {
+        font-size: 18px;
+        cursor: pointer;
+    }
+
+    button {
+        margin-left: 10px;
+        padding: 6px 12px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    .btn-delete {
+        background: #b11;
+        color: white;
+    }
+
+    .btn-edit {
+        background: #1483ff;
+        color: white;
+    }
+
+    /* CREATE/EDIT FORM */
+    .form-box {
+        background: #1c1c1c;
+        padding: 20px;
+        margin-top: 25px;
+        border-radius: 10px;
+    }
+
+    input, textarea {
+        width: 100%;
+        padding: 10px;
+        margin-top: 8px;
+        border-radius: 8px;
+        border: none;
+        background: #333;
+        color: white;
+        margin-bottom: 15px;
+        font-size: 16px;
+    }
+
+    #singleView {
+        background: #1c1c1c;
+        padding: 20px;
+        border-radius: 10px;
+        margin-top: 25px;
+        display: none;
+    }
+
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Notes Dashboard</h1>
+
+    <!-- CREATE NOTE -->
+    <div class="form-box">
+        <h2>Create Note</h2>
+        <input type="text" id="newTitle" placeholder="Title">
+        <textarea id="newContent" placeholder="Content" rows="4"></textarea>
+        <button onclick="createNote()">Create</button>
+    </div>
+
+    <!-- EDIT NOTE -->
+    <div class="form-box" id="editBox" style="display: none;">
+        <h2>Edit Note</h2>
+        <input type="text" id="editTitle">
+        <textarea id="editContent" rows="4"></textarea>
+        <button onclick="saveEdit()">Save Changes</button>
+        <button onclick="cancelEdit()" style="background:#666;color:white;">Cancel</button>
+    </div>
+
+    <!-- SINGLE NOTE VIEW -->
+    <div id="singleView">
+        <h2 id="viewTitle"></h2>
+        <p id="viewContent"></p>
+        <button onclick="closeView()" style="background:#444;color:white;">Close</button>
+    </div>
+
+    <h2>All Notes</h2>
+    <div id="notesList"></div>
+</div>
+
+<script>
+let editNoteId = null;
+
+// Load notes on startup
+window.onload = loadNotes;
+
+// GET ALL NOTES
+async function loadNotes() {
+    const res = await fetch("http://localhost:8080/notes");
+    const notes = await res.json();
+
+    const list = document.getElementById("notesList");
+    list.innerHTML = "";
+
+    notes.forEach(note => {
+        const div = document.createElement("div");
+        div.className = "note";
+
+        div.innerHTML = `
+            <div class="note-title" onclick="viewNote(${note.id})">${note.title}</div>
+            <div>
+                <button class="btn-edit" onclick="beginEdit(${note.id}, '${note.title}', '${note.content}')">Edit</button>
+                <button class="btn-delete" onclick="deleteNote(${note.id})">Delete</button>
+            </div>
+        `;
+
+        list.appendChild(div);
+    });
+}
+
+// CREATE NOTE
+async function createNote() {
+    const title = document.getElementById("newTitle").value;
+    const content = document.getElementById("newContent").value;
+
+    await fetch("http://localhost:8080/CreateNote", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ title, content })
+    });
+
+    document.getElementById("newTitle").value = "";
+    document.getElementById("newContent").value = "";
+
+    loadNotes();
+}
+
+// DELETE NOTE
+async function deleteNote(id) {
+    await fetch(`http://localhost:8080/notes/${id}`, {
+        method: "DELETE"
+    });
+    loadNotes();
+}
+
+// BEGIN EDIT
+function beginEdit(id, title, content) {
+    editNoteId = id;
+
+    document.getElementById("editTitle").value = title;
+    document.getElementById("editContent").value = content;
+
+    document.getElementById("editBox").style.display = "block";
+}
+
+// SAVE EDIT
+async function saveEdit() {
+    const title = document.getElementById("editTitle").value;
+    const content = document.getElementById("editContent").value;
+
+    await fetch(`http://localhost:8080/notes/${editNoteId}`, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ title, content })
+    });
+
+    editNoteId = null;
+    document.getElementById("editBox").style.display = "none";
+    loadNotes();
+}
+
+function cancelEdit() {
+    editNoteId = null;
+    document.getElementById("editBox").style.display = "none";
+}
+
+// VIEW NOTE
+async function viewNote(id) {
+    const res = await fetch(`http://localhost:8080/notes/${id}`);
+    const note = await res.json();
+
+    document.getElementById("viewTitle").innerText = note.title;
+    document.getElementById("viewContent").innerText = note.content;
+
+    document.getElementById("singleView").style.display = "block";
+}
+
+function closeView() {
+    document.getElementById("singleView").style.display = "none";
+}
+</script>
+
+</body>
+</html>
